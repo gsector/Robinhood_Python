@@ -1,5 +1,5 @@
 import requests
-import bs4
+from bs4 import BeautifulSoup
 
 class Finviz():
 
@@ -25,11 +25,11 @@ class Finviz():
         assert(self.url!=None), "URL must be specified to get Finviz data."
         assert('v=111' in self.url), "URL must be from the 'Overview' screener page."
         
-        f_data = self.session.get(url).text
-
-        with open('z_test.html','w') as f:
-            f.write(f_data)
-
+        c = self.session.get(url).content
+        soup = BeautifulSoup(c, "html.parser")
+        
+        for ticker in soup.find_all(name='a', class_='screener-link-primary', text=True):
+            yield ticker.text
 
 
 
