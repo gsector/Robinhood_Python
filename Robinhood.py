@@ -406,7 +406,7 @@ class Robinhood:
         return res.json()
 
 
-    def instruments(self, stock):
+    def instruments(self, stock=None):
         """Fetch instruments endpoint
             Args:
                 stock (str): stock ticker
@@ -532,7 +532,7 @@ class Robinhood:
         """Cancels all sell orders for the user
 
             Returns:
-                (float): # of cancelled orders / Total # of sell orders.
+                (int): # of cancelled orders
         """
 
         total = 0
@@ -542,11 +542,8 @@ class Robinhood:
             res = self.session.post(order['cancel'])
             if res is True:
                 success += 1
-
-        if success == total:
-            return True
-        else:
-            return False
+        
+        return success
     
 
     def place_stop_limit_order(self,
@@ -557,7 +554,7 @@ class Robinhood:
                                 stop_price=0.0,
                                 price=0.0, # Limit price
                                 side='sell',
-                                time_in_force='gtc'):
+                                time_in_force='gfd'):
         """Place an order with Robinhood
             Notes:
                 OMFG TEST THIS PLEASE!
@@ -590,15 +587,61 @@ class Robinhood:
             'time_in_force': time_in_force
         }
 
-        #data = 'account=%s&instrument=%s&price=%f&quantity=%d&side=%s&symbol=%s#&time_in_force=gfd&trigger=immediate&type=market' % (
-        #    self.get_account()['url'],
-        #    urllib.parse.unquote(instrument['url']),
-        #    float(bid_price),
-        #    quantity,
-        #    transaction,
-        #    instrument['symbol']
-        #)
         res = self.session.post(self.endpoints['orders'], data=payload)
-        # res.raise_for_status()
+        res.raise_for_status()
+
+        return res.json()
+    
+    def place_order(self,
+                                symbol=None,
+                                quantity=None,
+                                trigger=None,
+                                order_type=None,
+                                stop_price=0,
+                                price=0,
+                                side=None,
+                                time_in_force=None):
+        """Place an order with Robinhood
+            Notes:
+                OMFG TEST THIS PLEASE!
+                Just realized this won't work since if type is LIMIT you need to use "price" and if
+                a STOP you need to use "stop_price".  Oops.
+                Reference: https://github.com/sanko/Robinhood/blob/master/Order.md#place-an-order
+            Args:
+                instrument (str): the instrument URL to be traded
+                quantity (float): quantity of stocks in order
+                trigger (str): 'immediate' or 'stop'
+                type (str): type of order ('market' or 'limit')
+                stop_price (float): stop price to trigger the order
+                price (float): for a limit order, this is the limit price
+                side (str): 'sell' or 'buy'
+                time_in_force (str): 'gtc' or 'gfd' 
+            Returns:
+                (:obj:`requests.request`): result from `orders` put command
+        """
+
+        assert symbol != None, 'You must specify a stock ticker/instrument'
+        assert symbol not in self.no_trade_list, 'You may not trade a stock in your no trade list'
+        assert quantity > 0 and quantity == int(quantity), 'Quantity must be an integer > 0.'
+        assert trigger in ['immediate','stop'], "Trigger must be 'immediate' or 'stop'"
+        assert order_type in ['market', 'limit'], "Order type must be 'market' or 'limit'"
+        assert time_in_force in ['gfd','gtc'], "Time in force must be 'gfd' or 'gtc'"
+        
+        
+        payload = {
+            'account': self.get_account()['url'],
+            #'instrument': instrument,
+            'symbol': symbol, # self.instrument_results(url=instrument)['symbol'],
+            'quantity': quantity,
+            'trigger': trigger,
+            'type': order_type,
+            'stop_price': round(stop_price, 2),
+            'price': round(price, 2),
+            'side': side,
+            'time_in_force': time_in_force
+        }
+
+        res = self.session.post(self.endpoints['orders'], data=payload)
+        res.raise_for_status()
 
         return res.json()
