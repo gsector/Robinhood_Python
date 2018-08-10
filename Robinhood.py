@@ -67,8 +67,8 @@ class Robinhood:
 
 
     def login(self, 
-              username, 
-              password):
+              username=None, 
+              password=None):
         """Save and test login info for Robinhood accounts
         Args:
             username (str): username
@@ -77,9 +77,17 @@ class Robinhood:
             (bool): received valid auth token
         """
 
+        if username:
+            self.username = username
+        if password:    
+            self.password = password
+
+        assert self.username != None, 'Username must be included to login.'
+        assert self.password != None, 'Password must be included to login.'
+
         payload = {
-            'password': password,
-            'username': username
+            'password': self.password,
+            'username': self.username
         }
 
         try:
@@ -109,6 +117,35 @@ class Robinhood:
         res = res.json()
 
         return res['results'][0]
+    
+    def buying_power(self):
+        #TOD: Improve this documentation
+        """Fetch buying power
+            Returns:
+                float
+        """
+        return self.cash() - self.cash_held_for_orders()
+
+    def unsettled_funds(self):
+        #TOD: Improve this documentation
+
+        return float(self.get_account()['unsettled_funds'])
+    
+    def cash_held_for_orders(self):
+        #TOD: Improve this documentation
+        """Fetch buying power
+            Returns:
+                float
+        """
+        return float(self.get_account()['cash_held_for_orders'])
+
+    def cash(self):
+        #TOD: Improve this documentation
+        return float(self.get_account()['cash'])
+    
+    def cash_for_buying(self):
+        #TODO: Improve documentation
+        return self.buying_power() - self.cash_held_for_orders()
 
 
     def logout(self):
