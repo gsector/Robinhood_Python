@@ -44,6 +44,7 @@ class Robinhood:
     password = None
     headers = None
     auth_token = None
+    no_trade_list = list()
 
 
     ###########################################################################
@@ -170,24 +171,6 @@ class Robinhood:
     #                           GET ORDERS
     ###########################################################################
 
-    def _raw_all_orders(self, order_id=None):
-        """Returns the user's orders data
-            Args:
-                order_id (str): Optional order ID to only return order for the ID specified
-            
-            Returns:
-                (:object: `list`): list of JSON dicts, one for each individual order
-        """
-        # Return all the orders from the first page
-        if order_id:
-            url = self.endpoints['orders'] + order_id + '/'
-        else:
-            url = self.endpoints['orders']
-
-
-        return self.session.get(url).json()
-
-
     def orders(self, order_id=None):
         """Returns the user's orders data
             Args:
@@ -197,7 +180,12 @@ class Robinhood:
                 (:object: `list`): list of JSON dicts, one for each individual order
         """
         
-        orders_json = self._raw_all_orders(order_id)
+        # Return all the orders from the first page
+        if order_id:
+            url = self.endpoints['orders'] + order_id + '/'
+        else:
+            url = self.endpoints['orders']
+        orders_json = self.session.get(url).json()
     
         # When getting an order by ID, there is no ['result'] section.
         try:
@@ -205,7 +193,6 @@ class Robinhood:
                     yield order
         except:
             yield orders_json
-            return
 
         # Get additional pages of orders
         while orders_json['next']:
@@ -263,6 +250,45 @@ class Robinhood:
         # Generate orders
         for order in self.open_orders():
             if order['side'] == 'sell':
+                yield order
+        
+    def open_buy_orders(self):
+        """Returns the user's open sell orders that haven't been executed yet
+            
+            Returns:
+                (:object: `list`): list of orders that haven't been executed
+        """
+        ''' Contents:
+                "cancel": 
+                "reject_reason":  
+                "stop_price":
+                "extended_hours":
+                "position":  
+                "cumulative_quantity":
+                "ref_id":
+                "trigger": "stop", 
+                "average_price": null, 
+                "quantity": "4.00000", 
+                "override_dtbp_checks": 
+                "side": 
+                "state": "confirmed", [filled, cancelled, queued, confirmed, rejected]
+                "last_transaction_at":  
+                "url": 
+                "updated_at":
+                "id":
+                "created_at": 
+                "time_in_force": "gtc", 
+                "price": null, 
+                "instrument":
+                "account":
+                "type": "market", 
+                "fees": "0.00", 
+                "override_day_trade_checks": false, 
+                "executions": [] '''
+
+        # Generate orders
+        for order in self.open_orders():
+            if order['side'] == 'buy':
                 yield order
 
 
