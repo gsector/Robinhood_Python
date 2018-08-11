@@ -556,7 +556,8 @@ class Robinhood:
                                 stop_price=0,
                                 price=0,
                                 side=None,
-                                time_in_force=None):
+                                time_in_force=None,
+                                extended_hours=None):
         """Place an order with Robinhood
             Notes:
                 OMFG TEST THIS PLEASE!
@@ -577,20 +578,18 @@ class Robinhood:
                 (:obj:`requests.request`): result from `orders` put command
         """
 
+        # Check mandatory parameters
         assert symbol != None, 'You must specify a stock ticker/instrument'
         assert symbol not in self.no_trade_list, 'You may not trade a stock in your no trade list'
+        instrument = self.quote_data(stock=symbol)['instrument']
+        assert instrument != None, 'The instrument for the symbol provided could not be found.'
         assert quantity > 0 and quantity == int(quantity), 'Quantity must be an integer > 0.'
         assert trigger in ['immediate','stop'], "Trigger must be 'immediate' or 'stop'"
         assert order_type in ['market', 'limit'], "Order type must be 'market' or 'limit'"
         assert side in ['buy','sell'], "Side myst be 'buy' or 'sell'"
         assert time_in_force in ['gfd','gtc'], "Time in force must be 'gfd' or 'gtc'"
         
-        try:
-            #TODO: Create a method for instrument retrieval?
-            instrument = self.quote_data(stock=symbol)['instrument']
-        except:
-            assert False, "Instrument could not be retrieved for the symbol specified"
-        
+        # Create payload dictionary for the request
         payload = {
             'account': self.get_account()['url'],
             'instrument': instrument,
@@ -599,16 +598,35 @@ class Robinhood:
             'trigger': trigger,
             'type': order_type,
             'side': side,
-            'time_in_force': time_in_force
+            'time_in_force': time_in_force,
         }
-        if stop_price:
-            payload['price'] = round(stop_price, 2)
-        if price:
-            payload['price'] = round(price, 2)
 
+        # Check for optional parameters and add them to payload if provided
+        if stop_price:
+            assert self.is_number(stop_price), 'The stop price provided is not a valid number'
+            payload['stop_price'] = round(stop_price, 2)
+        if price:
+            assert self.is_number(price), "The price provided is not a valid number"
+            payload['price'] = round(price, 2)
+        if extended_hours:
+            assert extended_hours in [True,False], "Extended hours must be boolean True or False"
+            payload['extended_hours'] = extended_hours
+
+        # Create trade in Robinhood
         res = self.session.post(self.endpoints['orders'], data=payload)
 
-        if res.status_code == '200':
-            return res.json()
+        assert str(res.status_code)[0] == '2', 'Trade response status code {}. {}'.format(res.status_code, res.json())
+        return res.json()
+
+
+    ###########################################################################
+    #                           OTHER HELPFUL THINGS
+    ###########################################################################
+
+    def is_number(self, n):
+        #TODO: Add info
+
+        if type(n) in [int, float, complex ]:
+            return True
         else:
-            raise Exception('Trade response status code {}. {}'.format(res.status_code, res.json()))
+            return False
