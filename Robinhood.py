@@ -1,7 +1,9 @@
 """ 
-    Vast majority of this Robinhood.py was copied with slight modifications from:
+    Many of the methods included in Robinhood.py are copied with modification from:
         Robinhood.py: a collection of utilities for working with Robinhood's Private API
         https://github.com/Jamonek/Robinhood
+    The following project was also leaned on heavily for reference material:
+        https://github.com/sanko/Robinhood/
 """
 
 
@@ -426,7 +428,7 @@ class Robinhood:
         return res['results']
 
 
-    def quote_data(self, stock=''):
+    def quote_data(self, stock=None):
         """Fetch stock quote
             Args:
                 stock (str): stock ticker, prompt if blank
@@ -450,7 +452,7 @@ class Robinhood:
                 'has_traded'
                 'instrument' '''
 
-        url = None
+        assert stock
 
         if stock.find(',') == -1:
             url = str(self.endpoints['quotes']) + str(stock) + "/"
@@ -544,54 +546,8 @@ class Robinhood:
                 success += 1
         
         return success
-    
 
-    def place_stop_limit_order(self,
-                                instrument,
-                                quantity=1,
-                                trigger='stop',
-                                order_type='limit',
-                                stop_price=0.0,
-                                price=0.0, # Limit price
-                                side='sell',
-                                time_in_force='gfd'):
-        """Place an order with Robinhood
-            Notes:
-                OMFG TEST THIS PLEASE!
-                Just realized this won't work since if type is LIMIT you need to use "price" and if
-                a STOP you need to use "stop_price".  Oops.
-                Reference: https://github.com/sanko/Robinhood/blob/master/Order.md#place-an-order
-            Args:
-                instrument (str): the instrument URL to be traded
-                quantity (float): quantity of stocks in order
-                trigger (str): 'immediate' or 'stop'
-                type (str): type of order ('market' or 'limit')
-                stop_price (float): stop price to trigger the order
-                price (float): for a limit order, this is the limit price
-                side (str): 'sell' or 'buy'
-                time_in_force (str): 'gtc' or 'gfd' 
-            Returns:
-                (:obj:`requests.request`): result from `orders` put command
-        """
 
-        payload = {
-            'account': self.get_account()['url'],
-            'instrument': instrument,
-            'symbol': self.instrument_results(url=instrument)['symbol'],
-            'quantity': quantity,
-            'trigger': trigger,
-            'type': order_type,
-            'stop_price': round(stop_price, 2),
-            'price': round(price, 2),
-            'side': side,
-            'time_in_force': time_in_force
-        }
-
-        res = self.session.post(self.endpoints['orders'], data=payload)
-        res.raise_for_status()
-
-        return res.json()
-    
     def place_order(self,
                                 symbol=None,
                                 quantity=None,
@@ -615,7 +571,8 @@ class Robinhood:
                 stop_price (float): stop price to trigger the order
                 price (float): for a limit order, this is the limit price
                 side (str): 'sell' or 'buy'
-                time_in_force (str): 'gtc' or 'gfd' 
+                time_in_force (str): 'gtc' or 'gfd'
+                extended_hours (str): boolean, Would/should order execute when exchanges are closed?
             Returns:
                 (:obj:`requests.request`): result from `orders` put command
         """
@@ -625,23 +582,33 @@ class Robinhood:
         assert quantity > 0 and quantity == int(quantity), 'Quantity must be an integer > 0.'
         assert trigger in ['immediate','stop'], "Trigger must be 'immediate' or 'stop'"
         assert order_type in ['market', 'limit'], "Order type must be 'market' or 'limit'"
+        assert side in ['buy','sell'], "Side myst be 'buy' or 'sell'"
         assert time_in_force in ['gfd','gtc'], "Time in force must be 'gfd' or 'gtc'"
         
+        try:
+            #TODO: Create a method for instrument retrieval?
+            instrument = self.quote_data(stock=symbol)['instrument']
+        except:
+            assert False, "Instrument could not be retrieved for the symbol specified"
         
         payload = {
             'account': self.get_account()['url'],
-            #'instrument': instrument,
-            'symbol': symbol, # self.instrument_results(url=instrument)['symbol'],
+            'instrument': instrument,
+            'symbol': symbol,
             'quantity': quantity,
             'trigger': trigger,
             'type': order_type,
-            'stop_price': round(stop_price, 2),
-            'price': round(price, 2),
             'side': side,
             'time_in_force': time_in_force
         }
+        if stop_price:
+            payload['price'] = round(stop_price, 2)
+        if price:
+            payload['price'] = round(price, 2)
 
         res = self.session.post(self.endpoints['orders'], data=payload)
-        res.raise_for_status()
 
-        return res.json()
+        if res.status_code == '200':
+            return res.json()
+        else:
+            raise Exception('Trade response status code {}. {}'.format(res.status_code, res.json()))
