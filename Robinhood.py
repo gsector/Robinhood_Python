@@ -23,6 +23,7 @@ class Robinhood:
         "applications": "https://api.robinhood.com/applications/",
         "dividends": "https://api.robinhood.com/dividends/",
         "edocuments": "https://api.robinhood.com/documents/",
+        "fundamentals": "https://api.robinhood.com/fundamentals/",
         "instruments": "https://api.robinhood.com/instruments/",
         "margin_upgrades": "https://api.robinhood.com/margin/upgrades/",
         "markets": "https://api.robinhood.com/markets/",
@@ -38,7 +39,6 @@ class Robinhood:
         "user": "https://api.robinhood.com/user/",
         "watchlists": "https://api.robinhood.com/watchlists/",
         "news": "https://api.robinhood.com/midlands/news/",
-        "fundamentals": "https://api.robinhood.com/fundamentals/",
     }
 
     session = None
@@ -428,7 +428,7 @@ class Robinhood:
         return res['results']
 
 
-    def quote_data(self, stock=None):
+    def quote(self, symbol):
         """Fetch stock quote
             Args:
                 stock (str): stock ticker, prompt if blank
@@ -452,22 +452,58 @@ class Robinhood:
                 'has_traded'
                 'instrument' '''
 
-        assert stock
+        assert symbol != None, 'You must specify a stock ticker symbol'        
+        symbol = str(symbol).upper()
 
-        if stock.find(',') == -1:
-            url = str(self.endpoints['quotes']) + str(stock) + "/"
-        else:
-            url = str(self.endpoints['quotes']) + "?symbols=" + str(stock)
-
-        #Check for validity of symbol
-        try:
-            req = requests.get(url)
-            req.raise_for_status()
-            data = req.json()
-        except:
-            data = None
+        url = self.endpoints['quotes'] + symbol + "/"
+        res = requests.get(url)
+        assert self.status_ok(res.status_code), 'Trade response status code not OK {}. {}'.format(res.status_code, res.json())
         
-        return data
+        return res.json()
+    
+
+    def fundamentals(self, symbol):
+        """Fetch stock fundamentals
+            Args:
+                stock (str): stock ticker, prompt if blank
+            Returns:
+                (:obj:`dict`): JSON contents from `fundamentals` endpoint
+        """
+        '''Contents:
+                'open',
+                'headquarters_state',
+                'shares_outstanding',
+                'num_employees',
+                'market_cap',
+                'headquarters_city',
+                'volume',
+                'instrument',
+                'year_founded',
+                'high',
+                'dividend_yield',
+                'sector',
+                'high_52_weeks',
+                'average_volume_2_weeks',
+                'low',
+                'description',
+                'pe_ratio',
+                'low_52_weeks',
+                'average_volume',
+                'ceo' '''
+
+        assert symbol != None, 'You must specify a stock ticker symbol'        
+        symbol = str(symbol).upper()
+
+        url = self.endpoints['fundamentals'] + symbol + "/"
+        res = requests.get(url)
+        assert self.status_ok(res.status_code), 'Trade response status code not OK {}. {}'.format(res.status_code, res.json())
+        
+        return res.json()
+    
+    def high_52_weeks(self, symbol):
+        #TODO: Documentation
+
+        return self.fundamentals(symbol=symbol)['high_52_weeks']
     
     
     def get_historical_quotes(self,
@@ -579,9 +615,10 @@ class Robinhood:
         """
 
         # Check mandatory parameters
-        assert symbol != None, 'You must specify a stock ticker/instrument'
+        assert symbol != None, 'You must specify a stock ticker symbol'
+        symbol = symbol.upper()
         assert symbol not in self.no_trade_list, 'You may not trade a stock in your no trade list'
-        instrument = self.quote_data(stock=symbol)['instrument']
+        instrument = self.quote(symbol=symbol)['instrument']
         assert instrument != None, 'The instrument for the symbol provided could not be found.'
         assert quantity > 0 and quantity == int(quantity), 'Quantity must be an integer > 0.'
         assert trigger in ['immediate','stop'], "Trigger must be 'immediate' or 'stop'"
@@ -615,7 +652,7 @@ class Robinhood:
         # Create trade in Robinhood
         res = self.session.post(self.endpoints['orders'], data=payload)
 
-        assert str(res.status_code)[0] == '2', 'Trade response status code {}. {}'.format(res.status_code, res.json())
+        assert self.status_ok(res.status_code), 'Trade response status code not OK {}. {}'.format(res.status_code, res.json())
         return res.json()
 
 
@@ -623,10 +660,10 @@ class Robinhood:
     #                           OTHER HELPFUL THINGS
     ###########################################################################
 
+    def status_ok(self, s):
+        #TODO: Add info
+        return str(s)[0] == '2'
+    
     def is_number(self, n):
         #TODO: Add info
-
-        if type(n) in [int, float, complex ]:
-            return True
-        else:
-            return False
+        return type(n) in [int, float, complex ]
