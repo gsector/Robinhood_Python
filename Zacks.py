@@ -27,5 +27,10 @@ class Zacks():
         soup = BeautifulSoup(c, "html.parser")
 
         rank_box = '{}'.format(soup.find(name='div', class_='zr_rankbox'))
-        return re.search('(?:rank_view">\s*)([12345])', rank_box).group(1)
+        try:
+            r = '(?:rank_view">\s*)([12345])'
+            rank = re.search(r, rank_box).group(1)
+        except:
+            rank = '?'
+        return rank
 
