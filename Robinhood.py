@@ -187,6 +187,7 @@ class Robinhood:
             url = self.endpoints['orders'] + order_id + '/'
         else:
             url = self.endpoints['orders']
+
         orders_json = self.session.get(url).json()
     
         # When getting an order by ID, there is no ['result'] section.
@@ -338,33 +339,25 @@ class Robinhood:
             for position in positions['results']:
                 yield position
 
-    def _raw_nonzero_positions(self, nonzero=None):
-        if nonzero is True:
-            payload = {'nonzero': 'true'}
-        else:
-            payload = {}
-            
-        return self.session.get(self.endpoints['positions'], params = payload).json()
-
-    def nonzero_positions(self, nonzero=None):
+    def nonzero_positions_held(self):
         """Returns positions with shares held > 0
 
             Returns:
                 (:object: 'dict'): Positions
         """
-        
-        if nonzero is True:
-            positions = self._raw_nonzero_positions(nonzero=True)
-        else:
-            positions = self._raw_nonzero_positions(nonzero=None)
+
+        payload = {'nonzero': 'true'}
+        positions = self.session.get(self.endpoints['positions'], params = payload).json()
         
         for position in positions['results']:
-            yield position
+            if float(position['quantity']) > 0:
+                yield position
         
         while positions['next']:
             positions = self.session.get(positions['next']).json()
             for position in positions['results']:
-                yield position
+                if float(position['quantity']) > 0:
+                    yield position
 
 
 
@@ -573,27 +566,25 @@ class Robinhood:
                 (int): # of cancelled orders
         """
 
-        total = 0
         success = 0
         for order in self.open_sell_orders():
-            total += 1
             res = self.session.post(order['cancel'])
-            if res is True:
+            
+            if res.status_code == 200:
                 success += 1
-        
         return success
 
 
     def place_order(self,
-                                symbol=None,
-                                quantity=None,
-                                trigger=None,
-                                order_type=None,
-                                stop_price=0,
-                                price=0,
-                                side=None,
-                                time_in_force=None,
-                                extended_hours=None):
+                    symbol=None,
+                    quantity=None,
+                    trigger=None,
+                    order_type=None,
+                    stop_price=0,
+                    price=0,
+                    side=None,
+                    time_in_force=None,
+                    extended_hours=None):
         """Place an order with Robinhood
             Notes:
                 OMFG TEST THIS PLEASE!
