@@ -595,7 +595,7 @@ class Robinhood:
                 instrument (str): the instrument URL to be traded
                 quantity (float): quantity of stocks in order
                 trigger (str): 'immediate' or 'stop'
-                type (str): type of order ('market' or 'limit')
+                order_type (str): type of order ('market' or 'limit')
                 stop_price (float): stop price to trigger the order
                 price (float): for a limit order, this is the limit price
                 side (str): 'sell' or 'buy'
@@ -644,7 +644,7 @@ class Robinhood:
         res = self.session.post(self.endpoints['orders'], data=payload)
 
         assert self.status_ok(res.status_code), 'Trade response status code not OK {}. {}'.format(res.status_code, res.json())
-        return res.json()
+        return res.json() #Not ['reject_reason'] should == None
 
 
     ###########################################################################
