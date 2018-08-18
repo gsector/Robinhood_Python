@@ -2,6 +2,7 @@
 logs
 config.py
 z_*
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
