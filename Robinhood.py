@@ -9,9 +9,8 @@
 
 import requests
 
-
 class Robinhood:
-    """Wrapper class for interacting with Robinhood """
+    """Class for interacting with Robinhood """
 
     endpoints = {
         "login": "https://api.robinhood.com/api-token-auth/",
@@ -30,7 +29,7 @@ class Robinhood:
         "markets": "https://api.robinhood.com/markets/",
         "notifications": "https://api.robinhood.com/notifications/",
         "orders": "https://api.robinhood.com/orders/",
-        # API expects https://api.robinhood.com/orders/{{orderId}}/cancel/
+            # API expects https://api.robinhood.com/orders/{{orderId}}/cancel/
         "cancel_order": "https://api.robinhood.com/orders/",
         "password_reset": "https://api.robinhood.com/password_reset/request/",
         "portfolios": "https://api.robinhood.com/portfolios/",
@@ -55,6 +54,11 @@ class Robinhood:
     ###########################################################################
 
     def __init__(self):
+        """Robinhood class initialization
+
+            Creats a session and establishes headers.
+        """
+
         self.session = requests.session()
         headers = {
             "Accept": "application/json",
@@ -66,12 +70,9 @@ class Robinhood:
             "User-Agent": "Robinhood/823 (iPhone; iOS 7.1.2; Scale/2.00)",
             "Authorization": None
         }
-
         self.session.headers = headers
 
-    def login(self,
-              username=None,
-              password=None):
+    def login(self, username=None, password=None):
         """Logs a user into a Robinhood Session
 
         Parameters
@@ -161,48 +162,92 @@ class Robinhood:
         # TOD: Improve this documentation
         """Cash held for open orders
 
-        Returns:
-            float: $ amount held for open orders
+        Returns
+        -------
+        float
+            $ amount held for open orders
         """
         return float(self.get_account()['cash_held_for_orders'])
 
     def cash(self):
         """Total cash in the account
+
+        Returns
+        -------
+        float
+            Dollar amount of cash for the account.
         """
         return float(self.get_account()['cash'])
 
-    def cash_for_buying(self):
-        # TODO: Improve documentation
+    def cash_for_orders(self):
+        """Cash available for orders
+        
+        Returns
+        -------
+        float
+            Dollar amount available for orders.
+        """
+
         return self.buying_power() - self.cash_held_for_orders()
 
     def logout(self):
-        """Logout from Robinhood
-
-        Returns:
-            (:obj:`requests.request`) result from logout endpoint
+        """Logs user out of session
+        
         """
 
-        try:
-            req = self.session.post(self.endpoints['logout'])
-            req.raise_for_status()
-        except requests.exceptions.HTTPError as err_msg:
-            print('Failed to log out ' + repr(err_msg))
+        res = self.session.post(self.endpoints['logout'])
+        res.raise_for_status()
+    
+    def __del__(self):
+        """Destructor class.
 
-        self.session.headers.update({'Authorization': None})
+        Currently only logs user out.
+        
+        """
 
-        return req
+        self.logout()
+
+
 
     ###########################################################################
     #                           GET ORDERS
     ###########################################################################
 
     def orders(self, order_id=None):
-        """Returns the user's orders data
-            Args:
-                order_id (str): Optional order ID to only return order for the ID specified
+        """Returns all orders for the user.
 
-            Returns:
-                (:object: `list`): list of JSON dicts, one for each individual order
+        Can specify a single order_id to retrieve a single order by ID.
+
+        Yields
+        ------
+        dict
+            Orders data. Contents...
+                "cancel":
+                "reject_reason":
+                "stop_price":
+                "extended_hours":
+                "position":
+                "cumulative_quantity":
+                "ref_id":
+                "trigger": "stop",
+                "average_price": null,
+                "quantity": "4.00000",
+                "override_dtbp_checks":
+                "side":
+                "state": "confirmed", [filled, cancelled, queued, confirmed, rejected]
+                "last_transaction_at":
+                "url":
+                "updated_at":
+                "id":
+                "created_at":
+                "time_in_force": "gtc",
+                "price": null,
+                "instrument":
+                "account":
+                "type": "market",
+                "fees": "0.00",
+                "override_day_trade_checks": false,
+                "executions": []
         """
 
         # Return all the orders from the first page
@@ -211,7 +256,9 @@ class Robinhood:
         else:
             url = self.endpoints['orders']
 
-        orders_json = self.session.get(url).json()
+        res = self.session.get(url)
+        res.raise_for_status()
+        orders_json = res.json()
 
         # When getting an order by ID, there is no ['result'] section.
         try:
@@ -227,23 +274,51 @@ class Robinhood:
                 yield order
 
     def open_orders(self):
-        """Returns the user's orders that haven't been executed yet
+        """Returns open orders for the user.
 
-            Returns:
-                (:object: `list`): list of JSON dicts for orders that haven't been executed
+        Yields
+        ------
+        dict
+            Open orders data. Contents...
+                "cancel":
+                "reject_reason":
+                "stop_price":
+                "extended_hours":
+                "position":
+                "cumulative_quantity":
+                "ref_id":
+                "trigger": "stop",
+                "average_price": null,
+                "quantity": "4.00000",
+                "override_dtbp_checks":
+                "side":
+                "state": "confirmed", [filled, cancelled, queued, confirmed, rejected]
+                "last_transaction_at":
+                "url":
+                "updated_at":
+                "id":
+                "created_at":
+                "time_in_force": "gtc",
+                "price": null,
+                "instrument":
+                "account":
+                "type": "market",
+                "fees": "0.00",
+                "override_day_trade_checks": false,
+                "executions": []
         """
-        # Generate orders
+
         for order in self.orders():
             if order['cancel']:
                 yield order
 
     def open_sell_orders(self):
-        """Returns the user's open sell orders that haven't been executed yet
+        """Returns open sell orders for the user.
 
-            Returns:
-                (:object: `list`): list of orders that haven't been executed
-        """
-        ''' Contents:
+        Yields
+        ------
+        dict
+            Open orders data. Contents...
                 "cancel":
                 "reject_reason":
                 "stop_price":
@@ -269,20 +344,20 @@ class Robinhood:
                 "type": "market",
                 "fees": "0.00",
                 "override_day_trade_checks": false,
-                "executions": [] '''
+                "executions": []
+        """
 
-        # Generate orders
         for order in self.open_orders():
             if order['side'] == 'sell':
                 yield order
 
     def open_buy_orders(self):
-        """Returns the user's open sell orders that haven't been executed yet
+        """Returns open buy orders for the user.
 
-            Returns:
-                (:object: `list`): list of orders that haven't been executed
-        """
-        ''' Contents:
+        Yields
+        ------
+        dict
+            Open orders data. Contents...
                 "cancel":
                 "reject_reason":
                 "stop_price":
@@ -308,9 +383,9 @@ class Robinhood:
                 "type": "market",
                 "fees": "0.00",
                 "override_day_trade_checks": false,
-                "executions": [] '''
+                "executions": []
+        """
 
-        # Generate orders
         for order in self.open_orders():
             if order['side'] == 'buy':
                 yield order
@@ -476,8 +551,7 @@ class Robinhood:
 
         url = self.endpoints['quotes'] + symbol + "/"
         res = requests.get(url)
-        assert self.status_ok(res.status_code), 'Trade response status code not OK {}. {}'.format(
-            res.status_code, res.json())
+        res.raise_for_status()
 
         return res.json()
 
@@ -519,8 +593,7 @@ class Robinhood:
 
         url = self.endpoints['fundamentals'] + symbol + "/"
         res = requests.get(url)
-        assert self.status_ok(res.status_code), 'Trade response status code not OK {}. {}'.format(
-            res.status_code, res.json())
+        res.raise_for_status()
 
         return res.json()
 
@@ -538,24 +611,13 @@ class Robinhood:
             52 week high dollar amount for the given symbol.
         """
 
-        x = self.fundamentals(symbol=symbol['high_52_weeks']
+        x = self.fundamentals(symbol=symbol)['high_52_weeks']
         return float(x)
 
 
-
-        """Fetch historical data for stock
-            
-            Args:
-                stock (str): stock ticker(s) for multiple - separate with comma
-                interval (str): resolution of data
-                span (str): length of data
-            Returns:
-                (:obj:`dict`) values returned from `historicals` endpoint """
-
-        '''   '''
     def get_historical_quotes(self, symbol, interval='day', span='year'):
         """Fetches historical quote data for a stock
-        
+
         Parameters
         ----------
         symbol : str
@@ -564,7 +626,7 @@ class Robinhood:
             Resolution of the data for historical results. (the default is 'day', which provides one result per day)
         span : str, optional
             Length of the data (the default is 'year', which returns data for the last year)
-        
+
         Notes
         -----
         Valid interval/span configs
@@ -577,7 +639,8 @@ class Robinhood:
         Dict
             List of historical data dictionary items. Order is not guaranteed. Contents:
                 <data>['results']['historicals']
-                'begins_at'    # _ba = datetime.datetime.strptime(begins_at, '%Y-%m-%dT%H:%M:%SZ')
+                # _ba = datetime.datetime.strptime(begins_at, '%Y-%m-%dT%H:%M:%SZ')
+                'begins_at'
                 'open_price'
                 'interpolated'
                 'volume'
@@ -587,7 +650,7 @@ class Robinhood:
                 'session'
         """
 
-        params={'symbols': stock.upper(),
+        params={'symbols': symbol.upper(),
                   'interval': interval,
                   'span': span}
 
@@ -603,17 +666,30 @@ class Robinhood:
     # Need a function to submit a single market price order sell
 
     def cancel_order(self, order_id=None, url=None):
-        """Cancels a sell order by either url or id
-            Args:
-                (:str: 'id'): ID of the order to be cancelled
-                (:str: 'url'): Cancel url for the order
-            Returns:
-                (boolean): True = orders cancelled. False = orders unable to be cancelled.
-                """
+        """Cancel an order by order ID or URL
 
-        # API expects https://api.robinhood.com/orders/{{orderId}}/cancel/
+        Parameters
+        ----------
+        order_id : str, optional
+            Order ID of an order to be cancelled (the default is None, which means this parameter is ignored.)
+        url : str, optional
+            Cancle URL to request to cancel an order (the default is None, which means this parameter is ignored.)
+
+        Returns
+        -------
+        bool
+            True if successful, false otherwise
+
+        Notes
+        -----
+        For cancelling orders, Robinhood expects: https://api.robinhood.com/orders/{{orderId}}/cancel/
+        """
+
         if order_id is not None:
             url=self.endpoints['cancel_order'] + str(order_id) + '/cancel/'
+        else:
+            assert url, "An Order ID or URL must be provided to cancel an order"
+
         res=self.session.post(url)
 
         if res.json == {}:
@@ -622,56 +698,66 @@ class Robinhood:
             return False
 
     def cancel_all_sell_orders(self):
-        """Cancels all sell orders for the user
+        """Creates and sends requests to cancel all existing sell orders.
 
-            Returns:
-                (int): # of cancelled orders
+        Returns
+        -------
+        int
+            Number of orders cancelled as integer
         """
 
         success=0
         for order in self.open_sell_orders():
             res=self.session.post(order['cancel'])
+            res.raise_for_status()
 
-            if res.status_code == 200:
-                success += 1
         return success
 
-    def place_order(self,
-                    symbol=None,
-                    quantity=None,
-                    trigger=None,
-                    order_type=None,
-                    stop_price=0,
-                    price=0,
-                    side=None,
-                    time_in_force=None,
-                    extended_hours=None):
-        """Place an order with Robinhood
-            Notes:
-                OMFG TEST THIS PLEASE!
-                Just realized this won't work since if type is LIMIT you need to use "price" and if
-                a STOP you need to use "stop_price".  Oops.
-                Reference: https://github.com/sanko/Robinhood/blob/master/Order.md#place-an-order
-            Args:
-                instrument (str): the instrument URL to be traded
-                quantity (float): quantity of stocks in order
-                trigger (str): 'immediate' or 'stop'
-                order_type (str): type of order ('market' or 'limit')
-                stop_price (float): stop price to trigger the order
-                price (float): for a limit order, this is the limit price
-                side (str): 'sell' or 'buy'
-                time_in_force (str): 'gtc' or 'gfd'
-                extended_hours (str): boolean, Would/should order execute when exchanges are closed?
-            Returns:
-                (:obj:`requests.request`): result from `orders` put command
+    def place_order(self, symbol, quantity, trigger, order_type, side, time_in_force, stop_price=0.0, price=0.0):
+        """** TEST THIS ** Places an order
+
+        Stocks are checked against the no trade list to validate that
+        an order is no placed for somethign in the no trade list.
+        Reference: https://github.com/sanko/Robinhood/blob/master/Order.md#place-an-order
+
+        Notes
+        -----
+        If the order type is "limit" then you need to use "price". If
+        the order type is "stop" then you need to use "stop_price".
+
+        Parameters
+        ----------
+        symbol : str
+            Stock symbol
+        quantity : int
+            Number of shares to order. Must be > 0.
+        trigger : str
+            Trigger for the order. 'immediate' or 'stop'
+        order_type : str
+            Type of order. 'market' or 'limit'
+        side : str
+            Side for the order. 'buy' or 'sell'
+        time_in_force : str
+            How long the order is good for. 'gfd' for good for day and 'gtc' for good until cancelled.
+        stop_price : float, optional
+            Price that triggers the order (the default is 0.0)
+        price : float, optional
+            Limit price for the order. (the default is 0.0)
+
+        Returns
+        -------
+        Dict
+            Dictionary containing order results. When the order is successful, ['reject_reason'] should == None
         """
+        # TODO: Add "extended_hours" to the parameters and request
 
         # Check mandatory parameters
-        assert symbol != None, 'You must specify a stock ticker symbol'
         symbol=symbol.upper()
+        self.no_trade_list=[x.upper() for x in self.no_trade_list]
         assert symbol not in self.no_trade_list, 'You may not trade a stock in your no trade list'
         instrument=self.quote(symbol=symbol)['instrument']
-        assert instrument != None, 'The instrument for the symbol provided could not be found.'
+        assert instrument != None, 'The instrument for the symbol provided could not be found. Recheck symbol {}'.format(
+            symbol)
         assert quantity > 0 and quantity == int(
             quantity), 'Quantity must be an integer > 0.'
         assert trigger in ['immediate',
@@ -703,26 +789,28 @@ class Robinhood:
             assert self.is_number(
                 price), "The price provided is not a valid number"
             payload['price']=round(price, 2)
-        if extended_hours:
-            assert extended_hours in [
-                True, False], "Extended hours must be boolean True or False"
-            payload['extended_hours']=extended_hours
 
         # Create trade in Robinhood
         res=self.session.post(self.endpoints['orders'], data=payload)
-
-        assert self.status_ok(res.status_code), 'Trade response status code not OK {}. {}'.format(
-            res.status_code, res.json())
-        return res.json()  # Not ['reject_reason'] should == None
+        res.raise_for_status()
+        return res.json()
 
     ###########################################################################
     #                           OTHER HELPFUL THINGS
     ###########################################################################
 
-    def status_ok(self, s):
-        # TODO: Add info
-        return str(s)[0] == '2'
-
     def is_number(self, n):
-        # TODO: Add info
+        """Checks to validate that a given number is a number.
+        
+        Parameters
+        ----------
+        n : [int, float, complex]
+            A variable to check the type of
+        
+        Returns
+        -------
+        bool
+            True if a number, False otherwise.
+        """
+
         return type(n) in [int, float, complex]
