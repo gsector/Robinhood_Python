@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+import time
 
 
 class Finviz():
@@ -23,18 +24,29 @@ class Finviz():
         url : str, optional
             URL for the screen
 
-        Yields
+        Returns
         ------
-        Stock symbols from the screen
+        list
+            list of stock symbols
         """
 
         self.url = url
         assert(self.url != None), "URL must be specified to get Finviz data."
         assert('v=111' in self.url), "URL must be from the 'Overview' screener page."
+        
+        symbol_list = list()
 
-        c = self.session.get(url).content
-        soup = BeautifulSoup(c, "html.parser")
+        while True:
+            n_url = url + '&r={}'.format(len(symbol_list)+1)
+            c = self.session.get(n_url).content
 
-        for ticker in soup.find_all(name='a', class_='screener-link-primary', text=True):
-            yield ticker.text
-            # TODO: Get results when there are multiple pages
+            soup = BeautifulSoup(c, "html.parser")
+
+            for ticker in soup.find_all(name='a', class_='screener-link-primary', text=True):
+                if ticker.text in symbol_list:
+                    return symbol_list
+                else:
+                    symbol_list.append(ticker.text)
+            time.sleep(1)
+
+        return symbol_list
