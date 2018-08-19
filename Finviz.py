@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+import sys
 
 
 class Finviz():
@@ -36,17 +37,19 @@ class Finviz():
         
         symbol_list = list()
 
-        while True:
+        while True: 
             n_url = url + '&r={}'.format(len(symbol_list)+1)
-            c = self.session.get(n_url).content
+            res = self.session.get(n_url)
+            res.raise_for_status()
+            c = res.content
 
             soup = BeautifulSoup(c, "html.parser")
-
+            _t = 1 # Flag to indicate first stock in the query
             for ticker in soup.find_all(name='a', class_='screener-link-primary', text=True):
-                if ticker.text in symbol_list:
-                    return symbol_list
-                else:
-                    symbol_list.append(ticker.text)
-            time.sleep(1)
+                if _t == 1:
+                    _t = 2
+                    if ticker.text in symbol_list:
+                        return symbol_list
+                symbol_list.append(ticker.text)
 
         return symbol_list

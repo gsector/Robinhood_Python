@@ -2,6 +2,7 @@
 logs
 config.py
 z_*
+s_*
 .vscode
 
 # Byte-compiled / optimized / DLL files
